@@ -1,0 +1,18 @@
+# Node / Next.js
+frontend/node_modules
+frontend/.next
+frontend/.env.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/out
+
+# Python
+worker/__pycache__/
+worker/.env
+worker/venv/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
