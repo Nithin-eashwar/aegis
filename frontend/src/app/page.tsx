@@ -1,65 +1,101 @@
-import Image from "next/image";
+"use client";
+import { useState } from "react";
 
 export default function Home() {
+  const [text, setText] = useState("");
+  const [jobId, setJobId] = useState("");
+  const [status, setStatus] = useState("");
+  const [result, setResult] = useState("");
+
+  // This function will call itself until the job is done
+  const pollForJob = async (id: string) => {
+    try {
+      const response = await fetch(`/api/status/${id}`); // Call our new API
+      const data = await response.json();
+
+      if (data.status === "COMPLETED") {
+        setStatus("Job complete!");
+        // We get the summary from the result JSON
+        setResult(data.result.summary);
+      } else if (data.status === "FAILED") {
+        setStatus("Job failed. Check worker logs.");
+        setResult(data.result.error);
+      } else {
+        // Job is still 'PENDING' or 'PROCESSING'
+        setStatus("Job is processing... Please wait.");
+        // Wait 3 seconds and poll again
+        setTimeout(() => pollForJob(id), 3000);
+      }
+    } catch (error) {
+      console.error("Error polling:", error);
+      setStatus("Error polling for job status.");
+    }
+  };
+
+  const handleSubmit = async () => {
+    setStatus("Submitting...");
+    setJobId("");
+    setResult("");
+
+    const response = await fetch("/api/ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setStatus("Job created! Waiting for worker...");
+      setJobId(data.jobId);
+      //Calls after we have the job ID
+      pollForJob(data.jobId);
+      // --------------------
+    } else {
+      setStatus(`Error: ${data.error}`);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main style={{ padding: "2rem" }}>
+      <h1>Aegis Support Co-pilot</h1>
+      <textarea
+        rows={10}
+        cols={50}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Paste a long customer email here..."
+        style={{ display: "block", margin: "1rem 0", color: "black" }}
+      />
+      <button onClick={handleSubmit}>Triage Ticket</button>
+
+      {status && (
+        <p>
+          <strong>Status:</strong> {status}
+        </p>
+      )}
+      {jobId && (
+        <p>
+          <strong>Job ID:</strong> {jobId}
+        </p>
+      )}
+
+      {/* This will now show the summary! */}
+      {result && (
+        <div style={{ marginTop: "1rem" }}>
+          <h3>Summary:</h3>
+          <pre
+            style={{
+              background: "#f4f4f4",
+              padding: "1rem",
+              borderRadius: "5px",
+              color: "black",
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {result}
+          </pre>
         </div>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }
